@@ -36,8 +36,9 @@ async function bootstrap() {
   return appInstance;
 }
 
-// Local dev: listen on a port
-if (process.env.NODE_ENV !== "production") {
+// On Vercel: VERCEL=1 is set automatically — use the exported handler below.
+// On Render / local dev: start a real HTTP server.
+if (!process.env.VERCEL) {
   const { startReminderCron } = require("./jobs/reminderCron");
   const port = process.env.PORT || 5000;
   bootstrap().then((app) => {
