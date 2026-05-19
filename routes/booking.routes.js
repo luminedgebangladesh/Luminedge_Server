@@ -590,7 +590,7 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
       });
     } catch (error) {
       console.error("❌ Error updating attendance:", error);
-      res.status(500).json({ message: "Error updating attendance", error: error.message });
+      res.status(500).json({ message: "Error updating attendance" });
     }
   });
 
