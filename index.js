@@ -9,7 +9,8 @@ async function bootstrap() {
 
   await connectDB();
 
-  const { usersCollection, bookingMockCollection, schedulesCollection } = getCollections();
+  const collections = { ...getCollections(), client };
+  const { usersCollection, bookingMockCollection, schedulesCollection } = collections;
 
   await Promise.all([
     usersCollection.createIndex({ email: 1 }, { unique: true }),
@@ -31,8 +32,6 @@ async function bootstrap() {
     schedulesCollection.createIndex({ courseId: 1, startDate: 1, endDate: 1 }),
     schedulesCollection.createIndex({ startDate: 1 }),
   ]);
-
-  const collections = { ...getCollections(), client };
   appInstance = createApp(collections);
   return appInstance;
 }

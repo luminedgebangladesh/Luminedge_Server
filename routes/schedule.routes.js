@@ -2,8 +2,6 @@ const { Router } = require("express");
 const { ObjectId } = require("mongodb");
 const { verifyToken, verifyAdmin, verifyStaff } = require("../middleware/auth");
 
-const router = Router();
-
 const pad2 = (n) => String(n).padStart(2, "0");
 const toHHMM = (v) => {
   const [h = "0", m = "0"] = String(v || "").split(":");
@@ -56,6 +54,8 @@ async function getMaxSlotIdAcrossDocs(col, key) {
 }
 
 module.exports = ({ schedulesCollection, coursesCollection }) => {
+  const router = Router();
+
   // Public — users need courses list to book
   router.get("/courses", async (req, res) => {
     try {
@@ -224,7 +224,7 @@ module.exports = ({ schedulesCollection, coursesCollection }) => {
       }
       res.json({ success: true, message: "Schedule deleted successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Error deleting schedule", error });
+      res.status(500).json({ message: "Error deleting schedule" });
     }
   });
 

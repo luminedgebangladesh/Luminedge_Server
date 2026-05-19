@@ -4,8 +4,6 @@ const sanitizeHtml = require("sanitize-html");
 const { emailSender } = require("../emailSender");
 const { verifyToken, verifyAdmin, verifyStaff } = require("../middleware/auth");
 
-const router = Router();
-
 // Compute a future ISO date from a duration string like "6 months" or "10 days"
 function getFutureISODate(duration) {
   const [valueStr, unit] = (duration || "").split(" ");
@@ -33,6 +31,8 @@ function getFutureISODate(duration) {
 }
 
 module.exports = ({ usersCollection }) => {
+  const router = Router();
+
   router.get("/admin/users", verifyStaff, async (req, res, next) => {
     try {
       const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -120,7 +120,7 @@ module.exports = ({ usersCollection }) => {
         .toArray();
       res.json(users);
     } catch (error) {
-      res.status(500).json({ message: "Error fetching users", error });
+      res.status(500).json({ message: "Error fetching users" });
     }
   });
 
@@ -506,7 +506,7 @@ module.exports = ({ usersCollection }) => {
       });
     } catch (error) {
       console.error("Error updating user status:", error);
-      res.status(500).json({ message: "Error updating user status", error });
+      res.status(500).json({ message: "Error updating user status" });
     }
   });
 

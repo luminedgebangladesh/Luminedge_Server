@@ -8,7 +8,6 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL,
     pass: process.env.APP_PASS,
   },
-  tls: { rejectUnauthorized: false },
 });
 
 const sendWithRetry = async (mailOptions, retries = 2) => {

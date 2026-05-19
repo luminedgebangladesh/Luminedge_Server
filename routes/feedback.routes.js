@@ -4,9 +4,8 @@ const { emailSender } = require("../emailSender");
 const upload = require("../middleware/upload");
 const { verifyToken, verifyAdmin } = require("../middleware/auth");
 
-const router = Router();
-
 module.exports = ({ usersCollection, bookingMockCollection, client }) => {
+  const router = Router();
   // Teacher-accessible: email match enforced inside the handler
   router.post("/admin/save-feedback", verifyToken, async (req, res) => {
     try {

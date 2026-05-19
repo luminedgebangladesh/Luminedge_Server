@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const rateLimit = require("express-rate-limit");
 
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
@@ -29,12 +30,22 @@ module.exports = function createApp(collections) {
   );
   app.use(express.json({ limit: "10mb" }));
 
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many attempts, please try again later." },
+  });
+
   app.get("/", (req, res) => {
     res.json({ message: "Server is running smoothly", timestamp: new Date() });
   });
 
   // booking routes first so /user/bookings/:userId is matched before /user/:userId
   app.use("/api/v1", bookingRoutes({ usersCollection, schedulesCollection, bookingMockCollection, client }));
+  app.use("/api/v1/login", authLimiter);
+  app.use("/api/v1/auth/forget-password", authLimiter);
   app.use("/api/v1", authRoutes({ usersCollection }));
   app.use("/api/v1", userRoutes({ usersCollection }));
   app.use("/api/v1", feedbackRoutes({ usersCollection, bookingMockCollection, client }));

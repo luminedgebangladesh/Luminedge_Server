@@ -2,8 +2,6 @@ const { Router } = require("express");
 const { ObjectId } = require("mongodb");
 const { verifyAdmin } = require("../middleware/auth");
 
-const router = Router();
-
 // Shared match filter builder for user stats queries
 function buildMatchFilter({ from, to, role = "user" }) {
   const match = { role };
@@ -33,6 +31,8 @@ const expandMockTypes = [
 ];
 
 module.exports = ({ usersCollection, bookingMockCollection }) => {
+  const router = Router();
+
   router.get("/admin/stats/users/mock-types/range", verifyAdmin, async (req, res, next) => {
     try {
       const { from, to, role } = req.query;

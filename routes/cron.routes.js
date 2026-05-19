@@ -1,9 +1,8 @@
 const { Router } = require("express");
 const { startReminderCron } = require("../jobs/reminderCron");
 
-const router = Router();
-
 module.exports = ({ usersCollection }) => {
+  const router = Router();
   // Called by Vercel Cron at 10:00 Asia/Dhaka (04:00 UTC)
   router.get("/cron/reminder", async (req, res) => {
     const secret = process.env.CRON_SECRET;

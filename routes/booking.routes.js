@@ -4,7 +4,13 @@ const sanitizeHtml = require("sanitize-html");
 const { emailSender } = require("../emailSender");
 const { verifyToken, verifyAdmin, verifyStaff } = require("../middleware/auth");
 
-const router = Router();
+function convertTo12HourFormat(timeString) {
+  if (!timeString) return "Not Available";
+  const [hours, minutes] = timeString.split(":").map(Number);
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const formattedHours = hours % 12 || 12;
+  return `${formattedHours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+}
 
 async function sendBookingConfirmationEmail(user, bookingRecord) {
   try {
@@ -13,14 +19,6 @@ async function sendBookingConfirmationEmail(user, bookingRecord) {
       month: "long",
       day: "numeric",
     });
-
-    function convertTo12HourFormat(timeString) {
-      if (!timeString) return "Not Available";
-      const [hours, minutes] = timeString.split(":").map(Number);
-      const ampm = hours >= 12 ? "PM" : "AM";
-      const formattedHours = hours % 12 || 12;
-      return `${formattedHours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
-    }
 
     const testTimeRaw =
       bookingRecord.location === "Home" ? bookingRecord.testTime : bookingRecord.startTime;
@@ -75,6 +73,8 @@ async function sendBookingConfirmationEmail(user, bookingRecord) {
 }
 
 module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection, client }) => {
+  const router = Router();
+
   router.post("/user/book-slot", verifyToken, async (req, res) => {
     try {
       const {
@@ -347,9 +347,16 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
 
   router.get("/admin/bookings/home-with-users", verifyStaff, async (req, res) => {
     try {
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
+      const skip = (page - 1) * limit;
+
       const homeBookingsWithUsers = await bookingMockCollection
         .aggregate([
           { $match: { location: "Home" } },
+          { $sort: { _id: -1 } },
+          { $skip: skip },
+          { $limit: limit },
           { $addFields: { userObjectId: { $toObjectId: "$userId" } } },
           {
             $lookup: {
@@ -372,9 +379,9 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
         ], { maxTimeMS: 9000 })
         .toArray();
 
-      res.json({ bookings: homeBookingsWithUsers });
+      res.json({ bookings: homeBookingsWithUsers, page, limit });
     } catch (error) {
-      console.error("Error fetching optimized home bookings:", error);
+      console.error("Error fetching home bookings:", error);
       res.status(500).json({ message: "Internal Server Error" });
     }
   });
@@ -458,7 +465,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
       const { userId, attendance, status, bookingDate } = req.body;
 
       if (!userId || !attendance || !status) {
-        console.error("❌ Missing required fields:", { userId, attendance, status, bookingDate });
         return res.status(400).json({ message: "Missing required fields." });
       }
 
@@ -473,7 +479,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
 
         const bookingDateParsed = new Date(bookingDate);
         if (isNaN(bookingDateParsed.getTime())) {
-          console.error("❌ Invalid bookingDate format:", bookingDate);
           return res.status(400).json({ message: "Invalid booking date format." });
         }
 
@@ -484,10 +489,8 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
           day: "numeric",
         });
 
-        console.log("🔍 Searching for Home booking with:", updateFilter);
       } else {
         if (!ObjectId.isValid(scheduleId)) {
-          console.error("❌ Invalid schedule ID format:", scheduleId);
           return res.status(400).json({ message: "Invalid schedule ID format." });
         }
 
@@ -504,7 +507,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
           day: "numeric",
         });
 
-        console.log("🔍 Searching for Test Center booking with:", updateFilter);
       }
 
       const existingBooking = await bookingMockCollection.findOne(updateFilter);
@@ -519,7 +521,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
       );
 
       if (updateResult.matchedCount === 0) {
-        console.error("❌ No matching booking found:", updateFilter);
         return res.status(404).json({ message: "Booking not found." });
       }
 
@@ -527,8 +528,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
         console.warn("⚠️ Booking found but attendance was not modified:", updateFilter);
         return res.status(200).json({ message: "Attendance already updated." });
       }
-
-      console.log("✅ Attendance updated successfully for:", updateFilter);
 
       const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
       if (!user) {
@@ -577,11 +576,12 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
         `;
       }
 
-      try {
-        await emailSender(subject, user.email, messageContent);
-        console.log(`📩 Attendance email sent successfully to ${user.email}`);
-      } catch (emailError) {
-        console.error("❌ Error sending attendance email:", emailError);
+      if (subject && messageContent) {
+        try {
+          await emailSender(subject, user.email, messageContent);
+        } catch (emailError) {
+          console.error("Error sending attendance email:", emailError);
+        }
       }
 
       res.json({
@@ -612,13 +612,11 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
       );
       if (!existingBooking) {
         await session.abortTransaction();
-        await session.endSession();
         return res.status(404).json({ message: "Booking not found." });
       }
 
       if (req.user.role !== "admin" && existingBooking.userId !== String(req.user.userId)) {
         await session.abortTransaction();
-        await session.endSession();
         return res.status(403).json({ message: "Forbidden" });
       }
 
@@ -629,7 +627,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
 
       if (deleteResult.deletedCount === 0) {
         await session.abortTransaction();
-        await session.endSession();
         return res.status(500).json({ message: "Failed to cancel booking." });
       }
 
@@ -657,7 +654,6 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
       if (userUpdate.modifiedCount === 0) {
         console.warn(`Warning: User mock count update failed for userId ${existingBooking.userId}`);
         await session.abortTransaction();
-        await session.endSession();
         return res.status(500).json({ message: "Failed to update mock count." });
       }
 
@@ -672,7 +668,7 @@ module.exports = ({ usersCollection, schedulesCollection, bookingMockCollection,
         try { await session.abortTransaction(); } catch {}
       }
       console.error("Error canceling booking:", error);
-      res.status(500).json({ message: "Internal server error", error: error.message });
+      res.status(500).json({ message: "Internal server error" });
     } finally {
       await session.endSession();
     }

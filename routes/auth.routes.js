@@ -6,9 +6,8 @@ const sanitizeHtml = require("sanitize-html");
 const { emailSender } = require("../emailSender");
 const { verifyToken } = require("../middleware/auth");
 
-const router = Router();
-
 module.exports = ({ usersCollection }) => {
+  const router = Router();
   router.post("/register", async (req, res) => {
     const {
       name, email, password, contactNo, mock, result,
@@ -113,7 +112,7 @@ module.exports = ({ usersCollection }) => {
       const userData = await usersCollection.findOne({ email: email.toLowerCase() });
 
       if (!userData) {
-        return res.status(404).json({ success: false, message: "User not found or inactive!" });
+        return res.json({ success: true, message: "If this email is registered, a password reset link has been sent." });
       }
 
       const resetPassToken = jwt.sign(
