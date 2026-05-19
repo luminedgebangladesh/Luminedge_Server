@@ -10,28 +10,33 @@ async function bootstrap() {
   await connectDB();
 
   const collections = { ...getCollections(), client };
-  const { usersCollection, bookingMockCollection, schedulesCollection } = collections;
 
-  await Promise.all([
-    usersCollection.createIndex({ email: 1 }, { unique: true }),
-    usersCollection.createIndex({ status: 1 }),
-    usersCollection.createIndex({ role: 1 }),
-    usersCollection.createIndex({ createdAt: -1 }),
-    usersCollection.createIndex({ "mocks.mrValidationExpiry": 1 }),
-    usersCollection.createIndex({ profileChangeRequestStatus: 1 }),
-    usersCollection.createIndex({ nameLower: 1 }),
-    usersCollection.createIndex({ emailLower: 1 }),
-    bookingMockCollection.createIndex({ userId: 1 }),
-    bookingMockCollection.createIndex({ scheduleId: 1 }),
-    bookingMockCollection.createIndex({ location: 1 }),
-    bookingMockCollection.createIndex({ bookingDate: 1 }),
-    bookingMockCollection.createIndex({ attendance: 1 }),
-    bookingMockCollection.createIndex({ userId: 1, scheduleId: 1 }),
-    bookingMockCollection.createIndex({ userId: 1, location: 1 }),
-    bookingMockCollection.createIndex({ userId: 1, bookingDate: -1 }),
-    schedulesCollection.createIndex({ courseId: 1, startDate: 1, endDate: 1 }),
-    schedulesCollection.createIndex({ startDate: 1 }),
-  ]);
+  // Skip index creation on Vercel serverless — too slow for cold starts.
+  // Indexes are created on Render/local server startup instead.
+  if (!process.env.VERCEL) {
+    const { usersCollection, bookingMockCollection, schedulesCollection } = collections;
+    await Promise.all([
+      usersCollection.createIndex({ email: 1 }, { unique: true }),
+      usersCollection.createIndex({ status: 1 }),
+      usersCollection.createIndex({ role: 1 }),
+      usersCollection.createIndex({ createdAt: -1 }),
+      usersCollection.createIndex({ "mocks.mrValidationExpiry": 1 }),
+      usersCollection.createIndex({ profileChangeRequestStatus: 1 }),
+      usersCollection.createIndex({ nameLower: 1 }),
+      usersCollection.createIndex({ emailLower: 1 }),
+      bookingMockCollection.createIndex({ userId: 1 }),
+      bookingMockCollection.createIndex({ scheduleId: 1 }),
+      bookingMockCollection.createIndex({ location: 1 }),
+      bookingMockCollection.createIndex({ bookingDate: 1 }),
+      bookingMockCollection.createIndex({ attendance: 1 }),
+      bookingMockCollection.createIndex({ userId: 1, scheduleId: 1 }),
+      bookingMockCollection.createIndex({ userId: 1, location: 1 }),
+      bookingMockCollection.createIndex({ userId: 1, bookingDate: -1 }),
+      schedulesCollection.createIndex({ courseId: 1, startDate: 1, endDate: 1 }),
+      schedulesCollection.createIndex({ startDate: 1 }),
+    ]);
+  }
+
   appInstance = createApp(collections);
   return appInstance;
 }
